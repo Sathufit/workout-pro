@@ -1,0 +1,34 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bull';
+import { AuthModule } from './modules/auth/auth.module';
+import { ProfileModule } from './modules/profile/profile.module';
+import { HealthModule } from './modules/health/health.module';
+import { ExerciseModule } from './modules/exercise/exercise.module';
+import { WorkoutModule } from './modules/workout/workout.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AppController } from './app.controller';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    MongooseModule.forRoot(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/workoutpro'),
+    BullModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST ?? 'localhost',
+        port: parseInt(process.env.REDIS_PORT ?? '6379'),
+      },
+    }),
+    AuthModule,
+    ProfileModule,
+    HealthModule,
+    ExerciseModule,
+    WorkoutModule,
+    RemindersModule,
+    DashboardModule,
+  ],
+  controllers: [AppController],
+})
+export class AppModule {}
