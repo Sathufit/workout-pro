@@ -20,12 +20,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload): Promise<{ id: string; email: string }> {
     const user = await this.userModel
       .findOne({ _id: payload.sub, isActive: true })
-      .select('id email name timezone unitSystem')
+      .select('email name timezone unitSystem')
       .lean();
     if (!user) throw new UnauthorizedException();
-    return { id: (user as { _id: unknown })._id?.toString() ?? payload.sub, ...user };
+    return { id: payload.sub, ...user };
   }
 }

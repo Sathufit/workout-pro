@@ -18,4 +18,3 @@ export class RefreshToken extends Document {
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);
 RefreshTokenSchema.index({ userId: 1 });
-RefreshTokenSchema.index({ tokenHash: 1 });

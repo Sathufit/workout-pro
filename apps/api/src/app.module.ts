@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { HealthModule } from './modules/health/health.module';
@@ -15,12 +15,7 @@ import { AppController } from './app.controller';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/workoutpro'),
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST ?? 'localhost',
-        port: parseInt(process.env.REDIS_PORT ?? '6379'),
-      },
-    }),
+    ScheduleModule.forRoot(),
     AuthModule,
     ProfileModule,
     HealthModule,

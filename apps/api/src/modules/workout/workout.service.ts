@@ -134,11 +134,12 @@ export class WorkoutService {
       .lean();
   }
 
-  async deleteSet(userId: string, sessionId: string, setIndex: number) {
+  async deleteSet(userId: string, sessionId: string, setIndex: string) {
     await this.getSession(userId, sessionId);
     const session = await this.sessionModel.findById(sessionId);
     if (!session) throw new NotFoundException('Session not found');
-    (session.sets as unknown[]).splice(setIndex, 1);
+    const idx = parseInt(setIndex, 10);
+    (session.sets as unknown[]).splice(idx, 1);
     await session.save();
     return session;
   }

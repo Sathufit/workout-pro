@@ -1,7 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [".env"],
-  "pipeline": {
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
@@ -20,17 +19,6 @@
     "type-check": {
       "dependsOn": ["^build"],
       "outputs": []
-    },
-    "db:migrate": {
-      "cache": false
-    },
-    "db:seed": {
-      "cache": false,
-      "dependsOn": ["db:migrate"]
-    },
-    "db:studio": {
-      "cache": false,
-      "persistent": true
     }
   }
 }

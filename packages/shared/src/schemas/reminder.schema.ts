@@ -11,19 +11,21 @@ export const ReminderTypeSchema = z.enum([
 
 export const NotificationChannelSchema = z.enum(['in_app', 'email', 'push', 'sms']);
 
-export const CreateReminderSchema = z.object({
+const ReminderBaseSchema = z.object({
   type: ReminderTypeSchema,
   title: z.string().min(1).max(100),
   message: z.string().max(500).optional().nullable(),
   cronExpr: z.string().optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),
   channels: z.array(NotificationChannelSchema).min(1),
-}).refine(
+});
+
+export const CreateReminderSchema = ReminderBaseSchema.refine(
   (data) => data.cronExpr || data.scheduledAt,
   { message: 'Either cronExpr (recurring) or scheduledAt (one-off) must be provided' },
 );
 
-export const UpdateReminderSchema = CreateReminderSchema.partial().omit({ type: true });
+export const UpdateReminderSchema = ReminderBaseSchema.partial().omit({ type: true });
 
 export type ReminderType = z.infer<typeof ReminderTypeSchema>;
 export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
