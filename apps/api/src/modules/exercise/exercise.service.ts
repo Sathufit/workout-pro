@@ -10,8 +10,10 @@ const ExerciseQuerySchema = z.object({
   category: z.enum(EXERCISE_CATEGORIES).optional(),
   equipment: z.string().optional(),
   difficulty: z.enum(DIFFICULTY_LEVELS).optional(),
+  primaryMuscle: z.string().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(20),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 const CreateExerciseSchema = z.object({
@@ -31,7 +33,9 @@ export class ExerciseService {
   constructor(@InjectModel(Exercise.name) private exerciseModel: Model<Exercise>) {}
 
   async list(userId: string, query: unknown) {
-    const { search, category, equipment, difficulty, page, limit } = ExerciseQuerySchema.parse(query);
+    const parsed = ExerciseQuerySchema.parse(query);
+    const { search, category, equipment, difficulty, primaryMuscle, limit } = parsed;
+    const skip = parsed.offset !== undefined ? parsed.offset : (parsed.page - 1) * limit;
 
     const filter: Record<string, unknown> = {
       $or: [{ isCustom: false }, { isCustom: true, createdByUserId: userId }],
@@ -40,18 +44,19 @@ export class ExerciseService {
     if (category) filter.category = category;
     if (difficulty) filter.difficulty = difficulty;
     if (equipment) filter.equipment = equipment;
+    if (primaryMuscle) filter.primaryMuscles = primaryMuscle;
 
     const [items, total] = await Promise.all([
       this.exerciseModel
         .find(filter)
-        .sort({ isCustom: 1, name: 1 })
-        .skip((page - 1) * limit)
+        .sort(search ? { score: { $meta: 'textScore' } } : { isCustom: 1, name: 1 })
+        .skip(skip)
         .limit(limit)
         .lean(),
       this.exerciseModel.countDocuments(filter),
     ]);
 
-    return { items, total, page, limit, pages: Math.ceil(total / limit) };
+    return { items, total, page: parsed.page, limit, pages: Math.ceil(total / limit) };
   }
 
   async getById(userId: string, id: string) {

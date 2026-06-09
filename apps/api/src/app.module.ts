@@ -9,6 +9,7 @@ import { ExerciseModule } from './modules/exercise/exercise.module';
 import { WorkoutModule } from './modules/workout/workout.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { NutritionModule } from './modules/nutrition/nutrition.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -23,6 +24,7 @@ import { AppController } from './app.controller';
     WorkoutModule,
     RemindersModule,
     DashboardModule,
+    NutritionModule,
   ],
   controllers: [AppController],
 })

@@ -36,6 +36,15 @@ export class Exercise extends Document {
   @Prop()
   imageUrl?: string;
 
+  @Prop({ type: [String], default: [] })
+  images: string[];
+
+  @Prop()
+  force?: string;
+
+  @Prop()
+  mechanic?: string;
+
   @Prop({ default: false })
   isCustom: boolean;
 
