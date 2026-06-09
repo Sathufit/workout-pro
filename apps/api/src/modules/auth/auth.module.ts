@@ -15,7 +15,12 @@ import { PasswordResetToken, PasswordResetTokenSchema } from '../../schemas/pass
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({}),
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_ACCESS_SECRET ?? 'dev-fallback-secret-change-in-prod',
+        signOptions: { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m' },
+      }),
+    }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema },

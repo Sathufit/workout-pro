@@ -112,10 +112,8 @@ export class AuthService {
 
   private async issueTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
-    const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
-    });
+    // Secret and expiresIn come from JwtModule.registerAsync config — no override needed
+    const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = crypto.randomBytes(40).toString('hex');
     const tokenHash = this.hashToken(refreshToken);
