@@ -70,19 +70,19 @@ export default function LoginPage() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
+      <div className="flex-1 flex items-center justify-center p-5 sm:p-6 bg-slate-50 pt-safe">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
+          <div className="flex items-center gap-2 mb-6 lg:hidden">
             <div className="w-8 h-8 bg-violet-600 rounded-xl flex items-center justify-center">
               <Zap size={18} className="text-white" />
             </div>
             <span className="font-bold text-slate-900 text-lg">Workout Pro</span>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-slate-500 mt-1">Sign in to your account</p>
+            <p className="text-slate-500 mt-1 text-sm">Sign in to your account</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

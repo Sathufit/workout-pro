@@ -97,16 +97,16 @@ export default function ExercisesPage() {
   const handleMuscle = (v: string) => { setMuscle(v); setPage(1); };
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-5 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Exercise Library</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {total > 0 ? `${total} exercises — with step-by-step instructions and images` : 'Browse the exercise database'}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Exercise Library</h1>
+          <p className="text-slate-500 text-xs lg:text-sm mt-0.5 hidden sm:block">
+            {total > 0 ? `${total} exercises with instructions` : 'Browse the database'}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowFilters((f) => !f)}>
+        <Button variant="outline" size="sm" onClick={() => setShowFilters((f) => !f)} className="flex-shrink-0">
           <Filter size={14} />
           Filters
           {(category || muscle) && (
@@ -117,78 +117,73 @@ export default function ExercisesPage() {
         </Button>
       </div>
 
-      {/* Search + Filters */}
-      <div className="space-y-3">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 hover:border-slate-300 transition"
-            placeholder="Search exercises (e.g. bench press, squat, deadlift...)"
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
-        </div>
-
-        {showFilters && (
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Category</label>
-              <div className="flex flex-wrap gap-1.5">
-                <FilterChip active={category === ''} onClick={() => handleCategory('')}>All</FilterChip>
-                {CATEGORIES.map((c) => (
-                  <FilterChip key={c} active={category === c} onClick={() => handleCategory(c === category ? '' : c)}>
-                    {CATEGORY_BADGE[c].label}
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Muscle Group</label>
-              <div className="flex flex-wrap gap-1.5">
-                <FilterChip active={muscle === ''} onClick={() => handleMuscle('')}>All</FilterChip>
-                {MUSCLE_GROUPS.map((m) => (
-                  <FilterChip key={m} active={muscle === m} onClick={() => handleMuscle(m === muscle ? '' : m)}>
-                    <span className="capitalize">{m}</span>
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Search */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 hover:border-slate-300 transition"
+          placeholder="Search exercises..."
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
       </div>
 
-      {/* Grid */}
+      {/* Filters — horizontal scroll on mobile */}
+      {showFilters && (
+        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Category</p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+              <FilterChip active={category === ''} onClick={() => handleCategory('')}>All</FilterChip>
+              {CATEGORIES.map((c) => (
+                <FilterChip key={c} active={category === c} onClick={() => handleCategory(c === category ? '' : c)}>
+                  {CATEGORY_BADGE[c].label}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Muscle Group</p>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+              <FilterChip active={muscle === ''} onClick={() => handleMuscle('')}>All</FilterChip>
+              {MUSCLE_GROUPS.map((m) => (
+                <FilterChip key={m} active={muscle === m} onClick={() => handleMuscle(m === muscle ? '' : m)}>
+                  <span className="capitalize">{m}</span>
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grid — 2 cols on mobile */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="overflow-hidden">
-              <Skeleton className="h-40 w-full rounded-none" />
-              <div className="p-4 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-32 lg:h-40 w-full rounded-none" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-3 w-3/4" />
                 <Skeleton className="h-3 w-1/2" />
-                <div className="flex gap-1.5 pt-1">
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
               </div>
             </Card>
           ))}
         </div>
       ) : exercises.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
           {exercises.map((ex) => (
             <ExerciseCard key={ex._id} exercise={ex} onClick={() => setSelected(ex)} />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
-            <Dumbbell size={28} className="text-slate-300" />
+        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center">
+            <Dumbbell size={24} className="text-slate-300" />
           </div>
           <div>
             <p className="font-semibold text-slate-900">No exercises found</p>
             <p className="text-sm text-slate-500 mt-1">
-              {total === 0 ? 'Exercise database is loading — check back shortly' : 'Try adjusting your search or filters'}
+              {total === 0 ? 'Database loading — check back shortly' : 'Try different filters'}
             </p>
           </div>
           {(category || muscle || debouncedSearch) && (
@@ -201,16 +196,14 @@ export default function ExercisesPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm text-slate-500">
-            Page {page} of {totalPages} · {total} exercises
-          </p>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">Page {page}/{totalPages} · {total}</p>
+          <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-              <ChevronLeft size={14} /> Prev
+              <ChevronLeft size={14} />
             </Button>
             <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
-              Next <ChevronRight size={14} />
+              <ChevronRight size={14} />
             </Button>
           </div>
         </div>
@@ -243,7 +236,7 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
   return (
     <Card className="cursor-pointer hover:shadow-md hover:border-violet-100 transition-all group overflow-hidden" onClick={onClick}>
       {/* Image */}
-      <div className="relative h-40 bg-slate-100 overflow-hidden">
+      <div className="relative h-32 lg:h-40 bg-slate-100 overflow-hidden">
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -265,20 +258,17 @@ function ExerciseCard({ exercise, onClick }: { exercise: Exercise; onClick: () =
         </div>
       </div>
 
-      <CardContent className="p-4">
-        <h3 className="font-semibold text-slate-900 text-sm mb-1 leading-snug line-clamp-2">{exercise.name}</h3>
+      <CardContent className="p-3 lg:p-4">
+        <h3 className="font-semibold text-slate-900 text-xs lg:text-sm mb-1 leading-snug line-clamp-2">{exercise.name}</h3>
         {exercise.primaryMuscles?.length > 0 && (
-          <p className="text-xs text-slate-500 mb-3 capitalize">
+          <p className="text-[11px] lg:text-xs text-slate-500 mb-2 capitalize line-clamp-1">
             {exercise.primaryMuscles.slice(0, 2).join(' · ')}
           </p>
         )}
-        <div className="flex flex-wrap gap-1.5">
-          {catCfg && <Badge variant={catCfg.variant}>{catCfg.label}</Badge>}
-          {diffCfg && <Badge variant={diffCfg.variant}>{diffCfg.label}</Badge>}
+        <div className="flex flex-wrap gap-1">
+          {catCfg && <Badge variant={catCfg.variant} className="text-[10px]">{catCfg.label}</Badge>}
+          {diffCfg && <Badge variant={diffCfg.variant} className="text-[10px]">{diffCfg.label}</Badge>}
         </div>
-        {exercise.equipment?.length > 0 && (
-          <p className="text-xs text-slate-400 mt-2 capitalize">{exercise.equipment.slice(0, 2).join(', ')}</p>
-        )}
       </CardContent>
     </Card>
   );

@@ -97,21 +97,18 @@ export default function HealthPage() {
   const weightTrend = summary?.weightTrend7d;
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-5 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Health Metrics</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Track your body composition and health trends</p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Health Metrics</h1>
         <Button size="sm" onClick={() => setShowLogForm(true)}>
           <Plus size={14} />
-          Log metrics
+          Log
         </Button>
       </div>
 
       {/* Overview cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {latestLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-5">
@@ -165,14 +162,17 @@ export default function HealthPage() {
 
       {/* Chart */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Trend</CardTitle>
-          <div className="flex gap-1.5">
-            {(Object.keys(METRIC_CONFIG) as MetricType[]).slice(0, 5).map((type) => (
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <CardTitle>Trend</CardTitle>
+          </div>
+          {/* Horizontally scrollable type picker — no overflow on mobile */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-6 px-6 pb-0.5">
+            {(Object.keys(METRIC_CONFIG) as MetricType[]).map((type) => (
               <button
                 key={type}
                 onClick={() => setSelectedType(type)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   selectedType === type
                     ? 'bg-violet-600 text-white'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -271,12 +271,12 @@ function OverviewCard({ label, value, unit, trend, icon }: {
   label: string; value: string; unit: string; trend?: number; icon: ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 lg:p-5">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide leading-tight">{label}</p>
         {icon}
       </div>
-      <p className="text-2xl font-bold text-slate-900 tabular-nums">
+      <p className="text-xl lg:text-2xl font-bold text-slate-900 tabular-nums leading-none">
         {value}
         {unit && <span className="text-sm font-normal text-slate-400 ml-1">{unit}</span>}
       </p>

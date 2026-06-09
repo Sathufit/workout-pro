@@ -132,35 +132,26 @@ export default function NutritionPage() {
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-5 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nutrition</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Track your daily food and calorie intake</p>
-        </div>
-        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2 py-1.5">
-          <button
-            onClick={() => setDate((d) => addDays(d, -1))}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-          >
-            <ChevronLeft size={16} />
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Nutrition</h1>
+        {/* Date navigator */}
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1.5 py-1">
+          <button onClick={() => setDate((d) => addDays(d, -1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors min-h-[2rem]">
+            <ChevronLeft size={15} />
           </button>
-          <span className="text-sm font-medium text-slate-700 min-w-24 text-center">
+          <span className="text-xs lg:text-sm font-medium text-slate-700 min-w-16 lg:min-w-24 text-center">
             {fmtDate(date)}
           </span>
-          <button
-            onClick={() => setDate((d) => addDays(d, 1))}
-            disabled={isToday}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          >
-            <ChevronRight size={16} />
+          <button onClick={() => setDate((d) => addDays(d, 1))} disabled={isToday} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none transition-colors min-h-[2rem]">
+            <ChevronRight size={15} />
           </button>
         </div>
       </div>
 
       {/* Calorie overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <MacroCard
           label="Calories"
           value={totals.calories}
@@ -417,14 +408,14 @@ function MacroCard({ label, value, unit, icon, accent }: {
   label: string; value: string | number; unit: string; icon: ReactNode; accent: string;
 }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
-        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center`}>{icon}</div>
+    <Card className="p-3 lg:p-5">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[10px] lg:text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+        <div className={`w-6 h-6 lg:w-7 lg:h-7 rounded-lg ${accent} flex items-center justify-center`}>{icon}</div>
       </div>
-      <p className="text-2xl font-bold text-slate-900 tabular-nums">
+      <p className="text-xl lg:text-2xl font-bold text-slate-900 tabular-nums leading-none">
         {value}
-        <span className="text-sm font-normal text-slate-400 ml-1">{unit}</span>
+        <span className="text-xs lg:text-sm font-normal text-slate-400 ml-1">{unit}</span>
       </p>
     </Card>
   );

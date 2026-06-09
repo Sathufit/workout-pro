@@ -105,19 +105,19 @@ export default function WorkoutsPage() {
   });
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-5 lg:px-8 lg:py-8 max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Workouts</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Build plans and track your sessions</p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Workouts</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => createSession.mutate(undefined)} loading={createSession.isPending}>
-            <Play size={14} /> Quick start
+            <Play size={14} />
+            <span className="hidden sm:inline">Quick start</span>
           </Button>
           <Button size="sm" onClick={() => setShowCreatePlan(true)}>
-            <Plus size={14} /> New plan
+            <Plus size={14} />
+            <span className="hidden sm:inline">New plan</span>
+            <span className="sm:hidden">Plan</span>
           </Button>
         </div>
       </div>
@@ -128,7 +128,7 @@ export default function WorkoutsPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize min-h-[2.25rem] ${
               tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -140,11 +140,11 @@ export default function WorkoutsPage() {
       {/* Plans */}
       {tab === 'plans' && (
         plansLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             {[1, 2, 3].map((i) => <CardSkeleton key={i} />)}
           </div>
         ) : plans?.items?.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             {plans.items.map((plan: WorkoutPlan) => (
               <PlanCard
                 key={plan._id}

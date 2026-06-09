@@ -25,5 +25,25 @@
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Smooth scrolling everywhere */
+  html { scroll-behavior: smooth; }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep scrollability */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* iOS safe area padding */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* Bottom nav height + safe area */
+  .pb-nav { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
 }
