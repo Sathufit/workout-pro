@@ -752,6 +752,16 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
     onSuccess: () => onClose(),
   });
 
+  const deleteSession = useMutation({
+    mutationFn: () => api.delete(`/workout/sessions/${session._id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workout-sessions'] });
+      qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+      qc.invalidateQueries({ queryKey: ['workout-stats'] });
+      onClose();
+    },
+  });
+
   const sets: WorkoutSet[] = sessionData?.sets ?? [];
   const isCompleted = !!sessionData?.completedAt;
   const planExercises: PlanExercise[] = plan?.exercises ?? [];
@@ -818,12 +828,24 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
             </p>
           </div>
         </div>
-        {!isCompleted && (
-          <Button size="sm" variant="outline" onClick={() => completeSession.mutate()} loading={completeSession.isPending}>
-            <CheckCircle2 size={14} /> Finish
-          </Button>
-        )}
-        {isCompleted && <Badge variant="success">Completed</Badge>}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isCompleted && (
+            <>
+              <button
+                onClick={() => deleteSession.mutate()}
+                disabled={deleteSession.isPending}
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                title="Delete session"
+              >
+                <Trash2 size={17} />
+              </button>
+              <Button size="sm" variant="outline" onClick={() => completeSession.mutate()} loading={completeSession.isPending}>
+                <CheckCircle2 size={14} /> Finish
+              </Button>
+            </>
+          )}
+          {isCompleted && <Badge variant="success">Completed</Badge>}
+        </div>
       </div>
 
       {/* Sticky search */}
@@ -1184,9 +1206,22 @@ function PlanDetailModal({ plan, onClose, onStart, onManage }: {
 
 /* ─── Session Detail Modal ──────────────────────────────────────────────── */
 function SessionDetailModal({ session, onClose }: { session: WorkoutSession; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const { data: sessionData, isLoading } = useQuery({
     queryKey: ['session-detail', session._id],
     queryFn: () => api.get(`/workout/sessions/${session._id}`).then((r) => r.data as WorkoutSession),
+  });
+
+  const deleteSession = useMutation({
+    mutationFn: () => api.delete(`/workout/sessions/${session._id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workout-sessions'] });
+      qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+      qc.invalidateQueries({ queryKey: ['workout-stats'] });
+      onClose();
+    },
   });
 
   const sets: WorkoutSet[] = sessionData?.sets ?? [];
@@ -1280,8 +1315,36 @@ function SessionDetailModal({ session, onClose }: { session: WorkoutSession; onC
           )}
         </div>
 
-        <div className="px-5 py-4 pb-safe border-t border-slate-100 flex-shrink-0">
-          <Button variant="secondary" className="w-full" onClick={onClose}>Close</Button>
+        <div className="px-5 py-4 pb-safe border-t border-slate-100 flex-shrink-0 space-y-2">
+          {confirmDelete ? (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <p className="text-sm font-medium text-rose-800 text-center mb-2">Delete this session?</p>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  loading={deleteSession.isPending}
+                  onClick={() => deleteSession.mutate()}
+                >
+                  <Trash2 size={14} /> Delete
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={onClose}>Close</Button>
+              <Button
+                variant="ghost"
+                className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={15} />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

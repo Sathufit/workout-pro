@@ -16,6 +16,7 @@ import {
   Utensils,
   ChevronDown,
 } from 'lucide-react';
+import { AIChat } from '../../components/ui/ai-chat';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -173,6 +174,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      {/* ── AI Chat ─────────────────────────────────────── */}
+      <AIChat />
 
       {/* ── Mobile bottom tab bar ────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 flex items-stretch pb-safe">

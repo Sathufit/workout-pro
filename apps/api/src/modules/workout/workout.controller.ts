@@ -100,6 +100,12 @@ export class WorkoutController {
     return this.workoutService.getSession(user.id, id);
   }
 
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteSession(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    await this.workoutService.deleteSession(user.id, id);
+  }
+
   @Patch('sessions/:id')
   completeSession(@CurrentUser() user: { id: string }, @Param('id') id: string, @Body() body: unknown) {
     return this.workoutService.completeSession(user.id, id, CompleteSessionSchema.parse(body));

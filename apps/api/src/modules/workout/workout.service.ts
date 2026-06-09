@@ -134,6 +134,11 @@ export class WorkoutService {
       .lean();
   }
 
+  async deleteSession(userId: string, id: string) {
+    await this.getSession(userId, id);
+    await this.sessionModel.deleteOne({ _id: id });
+  }
+
   async deleteSet(userId: string, sessionId: string, setIndex: string) {
     await this.getSession(userId, sessionId);
     const session = await this.sessionModel.findById(sessionId);
