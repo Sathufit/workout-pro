@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import {
   Dumbbell, TrendingUp, TrendingDown, Flame, Scale,
-  Plus, ChevronRight, Activity, Calendar,
+  Plus, ChevronRight, Activity, Calendar, HeartPulse, Ruler,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -37,10 +37,17 @@ export default function DashboardPage() {
     queryKey: ['weight-metrics'],
     queryFn: () => api.get('/health/metrics?type=WEIGHT&limit=14').then((r) => r.data),
   });
+  const { data: latestHealth } = useQuery({
+    queryKey: ['health-latest'],
+    queryFn: () => api.get('/health/metrics/latest').then((r) => r.data),
+  });
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const weightTrend = summary?.weightTrend7d;
+  const latestWeight = (latestHealth?.WEIGHT as { value?: number } | undefined)?.value;
+  const latestBMI = (latestHealth?.BMI as { value?: number; category?: string } | undefined);
+  const latestBodyFat = (latestHealth?.BODY_FAT as { value?: number } | undefined)?.value;
   const weightData = (metrics?.items ?? []).map((m: { value: number; recordedAt: string }) => ({
     value: m.value,
     date: new Date(m.recordedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -94,6 +101,52 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Health snapshot — only shown when data exists */}
+      {(latestWeight != null || latestBMI?.value != null || latestBodyFat != null) && (
+        <Link href="/health">
+          <Card className="p-4 hover:shadow-md transition-shadow active:scale-[0.99]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Body Stats</p>
+              <div className="flex items-center gap-1 text-xs text-violet-600">
+                <span>Update</span>
+                <ChevronRight size={13} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center mx-auto mb-1.5">
+                  <Scale size={15} className="text-violet-600" />
+                </div>
+                <p className="text-lg font-bold text-slate-900 tabular-nums leading-none">
+                  {latestWeight != null ? latestWeight : '—'}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">kg weight</p>
+              </div>
+              <div className="text-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-1.5">
+                  <Ruler size={15} className="text-emerald-600" />
+                </div>
+                <p className="text-lg font-bold text-slate-900 tabular-nums leading-none">
+                  {latestBMI?.value != null ? latestBMI.value.toFixed(1) : '—'}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {latestBMI?.category ?? 'BMI'}
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center mx-auto mb-1.5">
+                  <HeartPulse size={15} className="text-orange-500" />
+                </div>
+                <p className="text-lg font-bold text-slate-900 tabular-nums leading-none">
+                  {latestBodyFat != null ? `${latestBodyFat}%` : '—'}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">body fat</p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      )}
 
       {/* Recent sessions + chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -85,7 +85,9 @@ export default function WorkoutsPage() {
   const [tab, setTab] = useState<'plans' | 'sessions'>('plans');
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [managingPlan, setManagingPlan] = useState<WorkoutPlan | null>(null);
+  const [viewingPlan, setViewingPlan] = useState<WorkoutPlan | null>(null);
   const [loggingSession, setLoggingSession] = useState<WorkoutSession | null>(null);
+  const [viewingSession, setViewingSession] = useState<WorkoutSession | null>(null);
   const qc = useQueryClient();
 
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -161,6 +163,7 @@ export default function WorkoutsPage() {
               <PlanCard
                 key={plan._id}
                 plan={plan}
+                onView={() => setViewingPlan(plan)}
                 onStart={() => createSession.mutate(plan._id)}
                 onManage={() => setManagingPlan(plan)}
                 onDelete={() => deletePlan.mutate(plan._id)}
@@ -185,7 +188,7 @@ export default function WorkoutsPage() {
               <SessionRow
                 key={s._id}
                 session={s}
-                onOpen={!s.completedAt ? () => setLoggingSession(s) : undefined}
+                onOpen={s.completedAt ? () => setViewingSession(s) : () => setLoggingSession(s)}
               />
             ))}
           </div>
@@ -227,22 +230,35 @@ export default function WorkoutsPage() {
           }}
         />
       )}
+
+      {viewingSession && (
+        <SessionDetailModal session={viewingSession} onClose={() => setViewingSession(null)} />
+      )}
+
+      {viewingPlan && (
+        <PlanDetailModal
+          plan={viewingPlan}
+          onClose={() => setViewingPlan(null)}
+          onStart={() => { createSession.mutate(viewingPlan._id); setViewingPlan(null); }}
+          onManage={() => { setManagingPlan(viewingPlan); setViewingPlan(null); }}
+        />
+      )}
     </div>
   );
 }
 
-function PlanCard({ plan, onStart, onManage, onDelete, starting }: {
-  plan: WorkoutPlan; onStart: () => void; onManage: () => void; onDelete: () => void; starting: boolean;
+function PlanCard({ plan, onView, onStart, onManage, onDelete, starting }: {
+  plan: WorkoutPlan; onView: () => void; onStart: () => void; onManage: () => void; onDelete: () => void; starting: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <Card className="hover:shadow-md transition-shadow relative">
+    <Card className="hover:shadow-md transition-shadow relative cursor-pointer" onClick={onView}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
             <Dumbbell size={18} className="text-violet-600" />
           </div>
-          <div className="relative">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
@@ -291,7 +307,7 @@ function PlanCard({ plan, onStart, onManage, onDelete, starting }: {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" variant="outline" className="flex-1" onClick={onManage}>
             Edit
           </Button>
@@ -310,7 +326,7 @@ function SessionRow({ session, onOpen }: { session: WorkoutSession; onOpen?: () 
   const exCount = new Set(session.sets?.map((s) => s.exerciseId)).size;
   return (
     <Card
-      className={!done && onOpen ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''}
+      className="cursor-pointer hover:shadow-md active:scale-[0.99] transition-all"
       onClick={onOpen}
     >
       <div className="flex items-center gap-4 px-5 py-4">
@@ -326,7 +342,7 @@ function SessionRow({ session, onOpen }: { session: WorkoutSession; onOpen?: () 
           </p>
         </div>
         <Badge variant={done ? 'success' : 'warning'}>{done ? 'Completed' : 'In progress'}</Badge>
-        {!done && <ChevronRight size={16} className="text-violet-400 flex-shrink-0" />}
+        <ChevronRight size={16} className={`flex-shrink-0 ${done ? 'text-slate-300' : 'text-violet-400'}`} />
       </div>
     </Card>
   );
@@ -702,14 +718,21 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showResults, setShowResults] = useState(false);
-  const [activeExercise, setActiveExercise] = useState<{ id: string; name: string } | null>(null);
+  const [activeExercise, setActiveExercise] = useState<{ id: string; name: string; targetSets?: number; targetReps?: number; targetWeight?: number } | null>(null);
   const [reps, setReps] = useState('10');
   const [weight, setWeight] = useState('');
 
   const { data: sessionData, refetch } = useQuery({
     queryKey: ['session-live', session._id],
     queryFn: () => api.get(`/workout/sessions/${session._id}`).then((r) => r.data as WorkoutSession),
-    refetchInterval: 5000,
+    refetchInterval: 8000,
+  });
+
+  // Load plan if this session was started from a plan
+  const { data: plan } = useQuery({
+    queryKey: ['workout-plan', session.planId],
+    queryFn: () => api.get(`/workout/plans/${session.planId}`).then((r) => r.data),
+    enabled: !!session.planId,
   });
 
   const { data: searchData } = useQuery({
@@ -721,10 +744,7 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
 
   const logSet = useMutation({
     mutationFn: (body: object) => api.post(`/workout/sessions/${session._id}/sets`, body),
-    onSuccess: () => {
-      refetch();
-      qc.invalidateQueries({ queryKey: ['workout-stats'] });
-    },
+    onSuccess: () => { refetch(); qc.invalidateQueries({ queryKey: ['workout-stats'] }); },
   });
 
   const completeSession = useMutation({
@@ -734,32 +754,42 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
 
   const sets: WorkoutSet[] = sessionData?.sets ?? [];
   const isCompleted = !!sessionData?.completedAt;
+  const planExercises: PlanExercise[] = plan?.exercises ?? [];
 
-  // Group sets by exercise preserving insertion order
-  const exerciseGroups: { id: string; name: string; sets: WorkoutSet[] }[] = [];
-  const seen = new Map<string, number>();
-  for (const s of sets) {
-    if (!seen.has(s.exerciseId)) {
-      seen.set(s.exerciseId, exerciseGroups.length);
-      exerciseGroups.push({ id: s.exerciseId, name: s.exerciseName ?? 'Exercise', sets: [] });
-    }
-    exerciseGroups[seen.get(s.exerciseId)!].sets.push(s);
-  }
-
-  const getSetsForExercise = (id: string) => sets.filter((s) => s.exerciseId === id);
-  const getNextSetNum = (id: string) => getSetsForExercise(id).length + 1;
+  const getSetsFor = (id: string) => sets.filter((s) => s.exerciseId === id);
+  const getNextSetNum = (id: string) => getSetsFor(id).length + 1;
   const getLastWeight = (id: string) => {
-    const prev = getSetsForExercise(id).filter((s) => s.weight != null);
+    const prev = getSetsFor(id).filter((s) => s.weight != null);
     return prev.length ? String(prev[prev.length - 1].weight) : '';
   };
 
-  const handleSelectExercise = (ex: Exercise) => {
-    setActiveExercise({ id: ex._id, name: ex.name });
-    setSearchQuery('');
-    setDebouncedSearch('');
-    setShowResults(false);
-    setWeight(getLastWeight(ex._id));
-    setReps('10');
+  // Extra exercises logged that aren't part of the plan
+  const extraGroups = useMemo(() => {
+    const planIds = new Set(planExercises.map((e) => e.exerciseId));
+    const map = new Map<string, { name: string; sets: WorkoutSet[] }>();
+    for (const s of sets) {
+      if (!planIds.has(s.exerciseId)) {
+        if (!map.has(s.exerciseId)) map.set(s.exerciseId, { name: s.exerciseName ?? 'Exercise', sets: [] });
+        map.get(s.exerciseId)!.sets.push(s);
+      }
+    }
+    return [...map.entries()].map(([id, g]) => ({ id, ...g }));
+  }, [planExercises, sets]);
+
+  // Total unique exercises for header
+  const totalExercises = planExercises.length > 0
+    ? planExercises.length + extraGroups.length
+    : extraGroups.length;
+
+  const openLogger = (id: string, name: string, target?: { targetSets?: number; targetReps?: number; targetWeight?: number }) => {
+    setActiveExercise({ id, name, ...target });
+    setSearchQuery(''); setDebouncedSearch(''); setShowResults(false);
+    setWeight(getLastWeight(id) || (target?.targetWeight ? String(target.targetWeight) : ''));
+    setReps(String(target?.targetReps ?? 10));
+  };
+
+  const handleSelectFromSearch = (ex: Exercise) => {
+    openLogger(ex._id, ex.name);
   };
 
   const handleLogSet = () => {
@@ -784,19 +814,13 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
           <div className="min-w-0">
             <h2 className="font-bold text-slate-900 text-sm truncate">{sessionData?.name ?? session.name}</h2>
             <p className="text-xs text-slate-400">
-              {exerciseGroups.length} exercise{exerciseGroups.length !== 1 ? 's' : ''} · {sets.length} sets
+              {totalExercises} exercise{totalExercises !== 1 ? 's' : ''} · {sets.length} sets logged
             </p>
           </div>
         </div>
         {!isCompleted && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => completeSession.mutate()}
-            loading={completeSession.isPending}
-          >
-            <CheckCircle2 size={14} />
-            Finish
+          <Button size="sm" variant="outline" onClick={() => completeSession.mutate()} loading={completeSession.isPending}>
+            <CheckCircle2 size={14} /> Finish
           </Button>
         )}
         {isCompleted && <Badge variant="success">Completed</Badge>}
@@ -808,50 +832,34 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
-              className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50"
-              placeholder="Search exercise to add (e.g. bench press)…"
+              className="w-full border border-slate-200 rounded-xl pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50"
+              placeholder="Search to add an exercise…"
               value={searchQuery}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSearchQuery(v);
-                setShowResults(true);
-                setTimeout(() => setDebouncedSearch(v), 350);
-              }}
+              onChange={(e) => { const v = e.target.value; setSearchQuery(v); setShowResults(true); setTimeout(() => setDebouncedSearch(v), 350); }}
               onFocus={() => setShowResults(true)}
             />
             {searchQuery && (
-              <button
-                onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowResults(false); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
-              >
+              <button onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowResults(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400">
                 <X size={14} />
               </button>
             )}
           </div>
-
-          {/* Live search results */}
           {showResults && debouncedSearch.trim().length > 1 && (
             <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
               {(searchData?.items ?? []).slice(0, 6).map((ex: Exercise) => (
-                <button
-                  key={ex._id}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-violet-50 active:bg-violet-100 transition-colors text-left border-b border-slate-50 last:border-0"
-                  onClick={() => handleSelectExercise(ex)}
-                >
+                <button key={ex._id} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-violet-50 active:bg-violet-100 transition-colors text-left border-b border-slate-50 last:border-0" onClick={() => handleSelectFromSearch(ex)}>
                   <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
                     <Dumbbell size={14} className="text-violet-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{ex.name}</p>
-                    {ex.primaryMuscles?.length > 0 && (
-                      <p className="text-xs text-slate-400 capitalize">{ex.primaryMuscles.slice(0, 2).join(' · ')}</p>
-                    )}
+                    {ex.primaryMuscles?.length > 0 && <p className="text-xs text-slate-400 capitalize">{ex.primaryMuscles.slice(0, 2).join(' · ')}</p>}
                   </div>
                   <Plus size={15} className="text-violet-400 flex-shrink-0" />
                 </button>
               ))}
               {(searchData?.items ?? []).length === 0 && (
-                <p className="px-4 py-3 text-sm text-slate-400">No exercises found for "{debouncedSearch}"</p>
+                <p className="px-4 py-3 text-sm text-slate-400">No exercises found</p>
               )}
             </div>
           )}
@@ -860,149 +868,152 @@ function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onC
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Active set-logger card */}
+        {/* Active set-logger */}
         {activeExercise && !isCompleted && (
           <div className="mx-4 mt-4 bg-white rounded-2xl border border-violet-200 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">Now logging</p>
                 <p className="font-semibold text-slate-900 truncate">{activeExercise.name}</p>
+                {(activeExercise.targetSets || activeExercise.targetReps) && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Target: {activeExercise.targetSets && `${activeExercise.targetSets} sets`}
+                    {activeExercise.targetReps && ` × ${activeExercise.targetReps} reps`}
+                    {activeExercise.targetWeight && ` @ ${activeExercise.targetWeight} kg`}
+                  </p>
+                )}
               </div>
-              <button onClick={() => setActiveExercise(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+              <button onClick={() => setActiveExercise(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg flex-shrink-0">
                 <X size={16} />
               </button>
             </div>
-
-            {/* Previous sets for this exercise */}
-            {getSetsForExercise(activeExercise.id).length > 0 && (
+            {getSetsFor(activeExercise.id).length > 0 && (
               <div className="px-4 pt-3 pb-1">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Previous sets</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Logged so far</p>
                 <div className="space-y-1">
-                  {getSetsForExercise(activeExercise.id).map((s) => (
+                  {getSetsFor(activeExercise.id).map((s) => (
                     <div key={s.setNumber} className="flex items-center gap-2 text-sm">
-                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                        {s.setNumber}
-                      </span>
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{s.setNumber}</span>
                       <span className="text-slate-600">{s.reps ?? '—'} reps</span>
-                      {s.weight != null && (
-                        <span className="text-slate-700 font-medium">@ {s.weight} kg</span>
-                      )}
+                      {s.weight != null && <span className="text-slate-700 font-medium">@ {s.weight} kg</span>}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* New set form */}
             <div className="px-4 py-4">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Set {getNextSetNum(activeExercise.id)}
-              </p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Set {getNextSetNum(activeExercise.id)}</p>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <Input
-                  label="Reps"
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  placeholder="10"
-                />
-                <Input
-                  label="Weight (kg)"
-                  type="number"
-                  inputMode="decimal"
-                  step="any"
-                  min="0"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder="e.g. 52.25"
-                />
+                <Input label="Reps" type="number" inputMode="numeric" min="1" value={reps} onChange={(e) => setReps(e.target.value)} placeholder="10" />
+                <Input label="Weight (kg)" type="number" inputMode="decimal" step="any" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 52.25" />
               </div>
-              <Button
-                className="w-full"
-                onClick={handleLogSet}
-                loading={logSet.isPending}
-                disabled={!reps && !weight}
-              >
+              <Button className="w-full" onClick={handleLogSet} loading={logSet.isPending} disabled={!reps && !weight}>
                 Log set {getNextSetNum(activeExercise.id)}
               </Button>
             </div>
           </div>
         )}
 
-        {/* Logged exercises summary */}
-        <div className="p-4 space-y-3">
-          {exerciseGroups.length > 0 ? (
-            exerciseGroups.map((group) => (
-              <div key={group.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <button
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition-colors"
-                  onClick={() => {
-                    if (isCompleted) return;
-                    setActiveExercise({ id: group.id, name: group.name });
-                    setSearchQuery('');
-                    setShowResults(false);
-                    setWeight(getLastWeight(group.id));
-                    setReps('10');
-                  }}
-                  disabled={isCompleted}
+        {/* Plan exercises guide */}
+        {planExercises.length > 0 && (
+          <div className="px-4 pt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+              {plan?.name ?? 'Plan'} · {planExercises.length} exercises
+            </p>
+            <div className="space-y-2">
+              {planExercises.map((ex) => {
+                const logged = getSetsFor(ex.exerciseId);
+                const done = ex.targetSets ? logged.length >= ex.targetSets : logged.length > 0;
+                const isActive = activeExercise?.id === ex.exerciseId;
+                return (
+                  <button
+                    key={ex.exerciseId}
+                    disabled={isCompleted}
+                    onClick={() => !isCompleted && openLogger(ex.exerciseId, ex.exerciseName ?? 'Exercise', ex)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                      isActive ? 'border-violet-300 bg-violet-50' :
+                      done ? 'border-emerald-100 bg-emerald-50/60' :
+                      'border-slate-100 bg-white hover:border-violet-200 hover:bg-violet-50/50 active:bg-violet-50'
+                    }`}
+                  >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${done ? 'bg-emerald-100' : 'bg-violet-100'}`}>
+                      {done ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Dumbbell size={16} className="text-violet-600" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900 text-sm truncate">{ex.exerciseName ?? 'Exercise'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {[
+                          ex.targetSets && `${ex.targetSets} sets`,
+                          ex.targetReps && `${ex.targetReps} reps`,
+                          ex.targetWeight && `${ex.targetWeight} kg`,
+                        ].filter(Boolean).join(' × ')}
+                        {logged.length > 0 && ` · ${logged.length} logged`}
+                      </p>
+                    </div>
+                    {!isCompleted && (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg flex-shrink-0 ${
+                        done ? 'text-emerald-700 bg-emerald-100' :
+                        logged.length > 0 ? 'text-violet-700 bg-violet-100' :
+                        'text-slate-400 bg-slate-100'
+                      }`}>
+                        {done ? 'Done' : logged.length > 0 ? `${logged.length}/${ex.targetSets ?? '?'}` : 'Start'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Extra exercises (not in plan) */}
+        {extraGroups.length > 0 && (
+          <div className="px-4 pt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Extra exercises</p>
+            <div className="space-y-2">
+              {extraGroups.map((group) => (
+                <button key={group.id} disabled={isCompleted}
+                  onClick={() => !isCompleted && openLogger(group.id, group.name)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white hover:border-violet-200 hover:bg-violet-50/50 transition-all text-left active:bg-violet-50"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                      <Dumbbell size={15} className="text-violet-600" />
-                    </div>
-                    <div className="text-left min-w-0">
-                      <p className="font-medium text-slate-900 text-sm truncate">{group.name}</p>
-                      <p className="text-xs text-slate-400">{group.sets.length} set{group.sets.length !== 1 ? 's' : ''}</p>
-                    </div>
+                  <div className="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <Dumbbell size={16} className="text-violet-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 text-sm truncate">{group.name}</p>
+                    <p className="text-xs text-slate-400">{group.sets.length} sets</p>
                   </div>
                   {!isCompleted && <ChevronRight size={15} className="text-slate-300 flex-shrink-0" />}
                 </button>
-                <div className="px-4 pb-3 border-t border-slate-50 space-y-1 pt-2">
-                  {group.sets.map((s) => (
-                    <div key={s.setNumber} className="flex items-center gap-2 text-xs text-slate-500">
-                      <span className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-[9px]">
-                        {s.setNumber}
-                      </span>
-                      <span>{s.reps != null ? `${s.reps} reps` : '—'}</span>
-                      {s.weight != null && (
-                        <span className="text-slate-700 font-semibold">@ {s.weight} kg</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            !isCompleted && (
-              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center">
-                  <Dumbbell size={28} className="text-violet-300" />
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-700">No exercises yet</p>
-                  <p className="text-sm text-slate-400 mt-1">Search above to find an exercise and start logging</p>
-                </div>
-              </div>
-            )
-          )}
-
-          {isCompleted && (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-              <CheckCircle2 size={36} className="text-emerald-500" />
-              <div>
-                <p className="font-semibold text-slate-800">Workout Complete!</p>
-                <p className="text-sm text-slate-500 mt-1">
-                  {sets.length} sets · {exerciseGroups.length} exercises
-                </p>
-              </div>
-              <Button variant="secondary" onClick={onClose}>Back to sessions</Button>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Bottom padding for home indicator */}
+        {/* Empty state (quick session, nothing logged yet) */}
+        {planExercises.length === 0 && extraGroups.length === 0 && !isCompleted && (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-8">
+            <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center">
+              <Dumbbell size={28} className="text-violet-300" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700">Ready to log</p>
+              <p className="text-sm text-slate-400 mt-1">Search for an exercise above to start</p>
+            </div>
+          </div>
+        )}
+
+        {isCompleted && (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-8">
+            <CheckCircle2 size={36} className="text-emerald-500" />
+            <div>
+              <p className="font-semibold text-slate-800">Workout Complete!</p>
+              <p className="text-sm text-slate-500 mt-1">{sets.length} sets · {totalExercises} exercises</p>
+            </div>
+            <Button variant="secondary" onClick={onClose}>Back to sessions</Button>
+          </div>
+        )}
+
         <div className="pb-safe h-6" />
       </div>
     </div>
@@ -1041,6 +1052,238 @@ function ExerciseInstructionsPreview({ exercise, expanded, onToggle }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Plan Detail Modal ─────────────────────────────────────────────────── */
+function PlanDetailModal({ plan, onClose, onStart, onManage }: {
+  plan: WorkoutPlan; onClose: () => void; onStart: () => void; onManage: () => void;
+}) {
+  const { data: planData, isLoading } = useQuery({
+    queryKey: ['workout-plan', plan._id],
+    queryFn: () => api.get(`/workout/plans/${plan._id}`).then((r) => r.data),
+  });
+
+  const exercises: PlanExercise[] = planData?.exercises ?? [];
+
+  // Fetch image + muscle info for each exercise in parallel
+  const detailQueries = useQueries({
+    queries: exercises.map((ex) => ({
+      queryKey: ['exercise-detail', ex.exerciseId],
+      queryFn: () => api.get(`/exercises/${ex.exerciseId}`).then((r) => r.data as Exercise),
+      enabled: !!ex.exerciseId,
+      staleTime: 10 * 60 * 1000,
+    })),
+  });
+
+  const detailMap = exercises.reduce<Record<string, Exercise | undefined>>((acc, ex, i) => {
+    acc[ex.exerciseId] = detailQueries[i]?.data;
+    return acc;
+  }, {});
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+      <div className="w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-100 flex-shrink-0">
+          <div className="min-w-0 pr-4">
+            <h2 className="font-bold text-slate-900 text-lg leading-tight">{plan.name}</h2>
+            {plan.description && <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{plan.description}</p>}
+            <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+              <span className="flex items-center gap-1"><Layers size={11} />{exercises.length} exercises</span>
+              {plan.scheduleDays && plan.scheduleDays.length > 0 && (
+                <span className="flex items-center gap-1"><Calendar size={11} />{plan.scheduleDays.length} days/week</span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex-shrink-0">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Schedule days */}
+        {plan.scheduleDays && plan.scheduleDays.length > 0 && (
+          <div className="flex gap-1.5 px-6 py-3 border-b border-slate-100 flex-shrink-0">
+            {DAYS.map((d, i) => (
+              <span key={d} className={`flex-1 py-1.5 rounded-lg text-xs font-medium text-center ${plan.scheduleDays!.includes(i + 1) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                {d[0]}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Exercise list */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {isLoading ? (
+            [1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)
+          ) : exercises.length > 0 ? (
+            exercises.map((ex, idx) => {
+              const detail = detailMap[ex.exerciseId];
+              const img = detail?.images?.[0] ?? detail?.imageUrl;
+              return (
+                <div key={ex.exerciseId} className="flex gap-3 p-3 bg-slate-50 rounded-xl">
+                  {/* Image */}
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-violet-100">
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={ex.exerciseName ?? ''} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Dumbbell size={22} className="text-violet-400" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-bold text-slate-400">{idx + 1}</span>
+                      <p className="font-semibold text-slate-900 text-sm truncate">{ex.exerciseName ?? 'Exercise'}</p>
+                    </div>
+                    {detail?.primaryMuscles && detail.primaryMuscles.length > 0 && (
+                      <p className="text-xs text-slate-400 capitalize mb-1.5">{detail.primaryMuscles.slice(0, 2).join(' · ')}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {ex.targetSets && (
+                        <span className="text-[11px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{ex.targetSets} sets</span>
+                      )}
+                      {ex.targetReps && (
+                        <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{ex.targetReps} reps</span>
+                      )}
+                      {ex.targetWeight && (
+                        <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{ex.targetWeight} kg</span>
+                      )}
+                      {ex.restSeconds && (
+                        <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{ex.restSeconds}s rest</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-10">
+              <Dumbbell size={28} className="text-slate-200 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No exercises added yet</p>
+              <button onClick={onManage} className="text-sm text-violet-600 hover:underline mt-1">Add exercises →</button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 py-4 pb-safe border-t border-slate-100 flex-shrink-0">
+          <Button variant="secondary" className="flex-1" onClick={onManage}>Edit plan</Button>
+          <Button className="flex-1" onClick={onStart} disabled={exercises.length === 0}>
+            <Play size={14} /> Start workout
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Session Detail Modal ──────────────────────────────────────────────── */
+function SessionDetailModal({ session, onClose }: { session: WorkoutSession; onClose: () => void }) {
+  const { data: sessionData, isLoading } = useQuery({
+    queryKey: ['session-detail', session._id],
+    queryFn: () => api.get(`/workout/sessions/${session._id}`).then((r) => r.data as WorkoutSession),
+  });
+
+  const sets: WorkoutSet[] = sessionData?.sets ?? [];
+
+  // Group by exercise preserving order
+  const groups = useMemo(() => {
+    const result: { id: string; name: string; sets: WorkoutSet[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const s of sets) {
+      if (!seen.has(s.exerciseId)) {
+        seen.set(s.exerciseId, result.length);
+        result.push({ id: s.exerciseId, name: s.exerciseName ?? 'Exercise', sets: [] });
+      }
+      result[seen.get(s.exerciseId)!].sets.push(s);
+    }
+    return result;
+  }, [sets]);
+
+  const duration = sessionData?.completedAt && sessionData?.startedAt
+    ? Math.round((new Date(sessionData.completedAt).getTime() - new Date(sessionData.startedAt).getTime()) / 60000)
+    : null;
+
+  const totalVolume = sets.reduce((sum, s) => sum + (s.reps ?? 0) * (s.weight ?? 0), 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+      <div className="w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-100 flex-shrink-0">
+          <div className="min-w-0 pr-4">
+            <h2 className="font-bold text-slate-900">{sessionData?.name ?? session.name}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {new Date(session.startedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {duration != null && ` · ${duration} min`}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex-shrink-0">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Summary stats */}
+        <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 flex-shrink-0">
+          {[
+            { label: 'Exercises', value: groups.length },
+            { label: 'Sets', value: sets.length },
+            { label: 'Volume', value: totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}t` : '—' },
+          ].map((stat) => (
+            <div key={stat.label} className="flex flex-col items-center py-3">
+              <p className="text-lg font-bold text-slate-900">{stat.value}</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Exercise breakdown */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {isLoading ? (
+            [1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)
+          ) : groups.length > 0 ? (
+            groups.map((group) => (
+              <div key={group.id} className="bg-slate-50 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <Dumbbell size={15} className="text-violet-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{group.name}</p>
+                    <p className="text-xs text-slate-400">{group.sets.length} sets</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {group.sets.map((s) => {
+                    const vol = s.reps && s.weight ? s.reps * s.weight : null;
+                    return (
+                      <div key={s.setNumber} className="flex items-center gap-3 text-sm">
+                        <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{s.setNumber}</span>
+                        <span className="text-slate-700 font-medium">
+                          {s.reps != null ? `${s.reps} reps` : '—'}
+                          {s.weight != null && ` @ ${s.weight} kg`}
+                        </span>
+                        {vol != null && <span className="ml-auto text-xs text-slate-400">{vol} kg vol</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-10 text-slate-400 text-sm">No sets logged in this session</div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 pb-safe border-t border-slate-100 flex-shrink-0">
+          <Button variant="secondary" className="w-full" onClick={onClose}>Close</Button>
+        </div>
+      </div>
     </div>
   );
 }
