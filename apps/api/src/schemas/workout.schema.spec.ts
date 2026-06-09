@@ -17,6 +17,11 @@ describe('LogSetSchema', () => {
     expect(LogSetSchema.safeParse(validSet).success).toBe(true);
   });
 
+  it('accepts exerciseName as optional', () => {
+    expect(LogSetSchema.safeParse({ ...validSet, exerciseName: 'Bench Press' }).success).toBe(true);
+    expect(LogSetSchema.safeParse(validSet).success).toBe(true);
+  });
+
   it('accepts a set without weight (bodyweight exercise)', () => {
     const { weight: _, ...withoutWeight } = validSet;
     expect(LogSetSchema.safeParse(withoutWeight).success).toBe(true);

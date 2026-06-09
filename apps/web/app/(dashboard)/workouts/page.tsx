@@ -60,13 +60,23 @@ interface WorkoutPlan {
   isTemplate?: boolean;
 }
 
+interface WorkoutSet {
+  exerciseId: string;
+  exerciseName?: string;
+  setNumber: number;
+  reps?: number;
+  weight?: number;
+  rpe?: number;
+  completedAt: string;
+}
+
 interface WorkoutSession {
   _id: string;
   name?: string;
   planId?: string;
   startedAt: string;
   completedAt?: string;
-  sets?: unknown[];
+  sets?: WorkoutSet[];
 }
 
 const PAGE_SIZE = 12;
@@ -75,6 +85,7 @@ export default function WorkoutsPage() {
   const [tab, setTab] = useState<'plans' | 'sessions'>('plans');
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [managingPlan, setManagingPlan] = useState<WorkoutPlan | null>(null);
+  const [loggingSession, setLoggingSession] = useState<WorkoutSession | null>(null);
   const qc = useQueryClient();
 
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -91,11 +102,12 @@ export default function WorkoutsPage() {
   const createSession = useMutation({
     mutationFn: (planId?: string) =>
       api.post('/workout/sessions', { planId, name: planId ? undefined : 'Quick Session' }).then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (newSession: WorkoutSession) => {
       qc.invalidateQueries({ queryKey: ['workout-sessions'] });
       qc.invalidateQueries({ queryKey: ['recent-sessions'] });
       qc.invalidateQueries({ queryKey: ['workout-stats'] });
       setTab('sessions');
+      setLoggingSession(newSession);
     },
   });
 
@@ -169,7 +181,13 @@ export default function WorkoutsPage() {
           </div>
         ) : sessions?.items?.length > 0 ? (
           <div className="space-y-3">
-            {sessions.items.map((s: WorkoutSession) => <SessionRow key={s._id} session={s} />)}
+            {sessions.items.map((s: WorkoutSession) => (
+              <SessionRow
+                key={s._id}
+                session={s}
+                onOpen={!s.completedAt ? () => setLoggingSession(s) : undefined}
+              />
+            ))}
           </div>
         ) : (
           <EmptySessions onStartClick={() => createSession.mutate(undefined)} />
@@ -194,6 +212,18 @@ export default function WorkoutsPage() {
           onClose={() => {
             setManagingPlan(null);
             qc.invalidateQueries({ queryKey: ['workout-plans'] });
+          }}
+        />
+      )}
+
+      {loggingSession && (
+        <SessionLoggerModal
+          session={loggingSession}
+          onClose={() => {
+            setLoggingSession(null);
+            qc.invalidateQueries({ queryKey: ['workout-sessions'] });
+            qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+            qc.invalidateQueries({ queryKey: ['workout-stats'] });
           }}
         />
       )}
@@ -274,10 +304,15 @@ function PlanCard({ plan, onStart, onManage, onDelete, starting }: {
   );
 }
 
-function SessionRow({ session }: { session: WorkoutSession }) {
+function SessionRow({ session, onOpen }: { session: WorkoutSession; onOpen?: () => void }) {
   const done = !!session.completedAt;
+  const setCount = session.sets?.length ?? 0;
+  const exCount = new Set(session.sets?.map((s) => s.exerciseId)).size;
   return (
-    <Card>
+    <Card
+      className={!done && onOpen ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''}
+      onClick={onOpen}
+    >
       <div className="flex items-center gap-4 px-5 py-4">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${done ? 'bg-emerald-50' : 'bg-amber-50'}`}>
           {done ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-amber-500" />}
@@ -285,11 +320,13 @@ function SessionRow({ session }: { session: WorkoutSession }) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-slate-900 text-sm">{session.name ?? 'Workout Session'}</p>
           <p className="text-xs text-slate-500 mt-0.5">
-            {formatRelative(session.completedAt ?? session.startedAt)} · {(session.sets as unknown[])?.length ?? 0} sets
+            {formatRelative(session.completedAt ?? session.startedAt)}
+            {setCount > 0 && ` · ${setCount} sets`}
+            {exCount > 0 && ` · ${exCount} exercises`}
           </p>
         </div>
         <Badge variant={done ? 'success' : 'warning'}>{done ? 'Completed' : 'In progress'}</Badge>
-        <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
+        {!done && <ChevronRight size={16} className="text-violet-400 flex-shrink-0" />}
       </div>
     </Card>
   );
@@ -654,6 +691,319 @@ function ExercisePicker({ planId, onClose }: { planId: string; onClose: () => vo
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Session Logger ────────────────────────────────────────────────────── */
+function SessionLoggerModal({ session, onClose }: { session: WorkoutSession; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [activeExercise, setActiveExercise] = useState<{ id: string; name: string } | null>(null);
+  const [reps, setReps] = useState('10');
+  const [weight, setWeight] = useState('');
+
+  const { data: sessionData, refetch } = useQuery({
+    queryKey: ['session-live', session._id],
+    queryFn: () => api.get(`/workout/sessions/${session._id}`).then((r) => r.data as WorkoutSession),
+    refetchInterval: 5000,
+  });
+
+  const { data: searchData } = useQuery({
+    queryKey: ['ex-search-live', debouncedSearch],
+    queryFn: () => api.get(`/exercises?search=${encodeURIComponent(debouncedSearch)}&limit=8`).then((r) => r.data),
+    enabled: debouncedSearch.trim().length > 1,
+    placeholderData: (p) => p,
+  });
+
+  const logSet = useMutation({
+    mutationFn: (body: object) => api.post(`/workout/sessions/${session._id}/sets`, body),
+    onSuccess: () => {
+      refetch();
+      qc.invalidateQueries({ queryKey: ['workout-stats'] });
+    },
+  });
+
+  const completeSession = useMutation({
+    mutationFn: () => api.patch(`/workout/sessions/${session._id}`, {}),
+    onSuccess: () => onClose(),
+  });
+
+  const sets: WorkoutSet[] = sessionData?.sets ?? [];
+  const isCompleted = !!sessionData?.completedAt;
+
+  // Group sets by exercise preserving insertion order
+  const exerciseGroups: { id: string; name: string; sets: WorkoutSet[] }[] = [];
+  const seen = new Map<string, number>();
+  for (const s of sets) {
+    if (!seen.has(s.exerciseId)) {
+      seen.set(s.exerciseId, exerciseGroups.length);
+      exerciseGroups.push({ id: s.exerciseId, name: s.exerciseName ?? 'Exercise', sets: [] });
+    }
+    exerciseGroups[seen.get(s.exerciseId)!].sets.push(s);
+  }
+
+  const getSetsForExercise = (id: string) => sets.filter((s) => s.exerciseId === id);
+  const getNextSetNum = (id: string) => getSetsForExercise(id).length + 1;
+  const getLastWeight = (id: string) => {
+    const prev = getSetsForExercise(id).filter((s) => s.weight != null);
+    return prev.length ? String(prev[prev.length - 1].weight) : '';
+  };
+
+  const handleSelectExercise = (ex: Exercise) => {
+    setActiveExercise({ id: ex._id, name: ex.name });
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setShowResults(false);
+    setWeight(getLastWeight(ex._id));
+    setReps('10');
+  };
+
+  const handleLogSet = () => {
+    if (!activeExercise) return;
+    logSet.mutate({
+      exerciseId: activeExercise.id,
+      exerciseName: activeExercise.name,
+      setNumber: getNextSetNum(activeExercise.id),
+      reps: reps ? parseInt(reps, 10) : undefined,
+      weight: weight ? parseFloat(weight) : undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0 pt-safe">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={onClose} className="p-2 -ml-1 rounded-xl hover:bg-slate-100 transition-colors flex-shrink-0">
+            <ChevronLeft size={20} className="text-slate-600" />
+          </button>
+          <div className="min-w-0">
+            <h2 className="font-bold text-slate-900 text-sm truncate">{sessionData?.name ?? session.name}</h2>
+            <p className="text-xs text-slate-400">
+              {exerciseGroups.length} exercise{exerciseGroups.length !== 1 ? 's' : ''} · {sets.length} sets
+            </p>
+          </div>
+        </div>
+        {!isCompleted && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => completeSession.mutate()}
+            loading={completeSession.isPending}
+          >
+            <CheckCircle2 size={14} />
+            Finish
+          </Button>
+        )}
+        {isCompleted && <Badge variant="success">Completed</Badge>}
+      </div>
+
+      {/* Sticky search */}
+      {!isCompleted && (
+        <div className="px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50"
+              placeholder="Search exercise to add (e.g. bench press)…"
+              value={searchQuery}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchQuery(v);
+                setShowResults(true);
+                setTimeout(() => setDebouncedSearch(v), 350);
+              }}
+              onFocus={() => setShowResults(true)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowResults(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Live search results */}
+          {showResults && debouncedSearch.trim().length > 1 && (
+            <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+              {(searchData?.items ?? []).slice(0, 6).map((ex: Exercise) => (
+                <button
+                  key={ex._id}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-violet-50 active:bg-violet-100 transition-colors text-left border-b border-slate-50 last:border-0"
+                  onClick={() => handleSelectExercise(ex)}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <Dumbbell size={14} className="text-violet-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{ex.name}</p>
+                    {ex.primaryMuscles?.length > 0 && (
+                      <p className="text-xs text-slate-400 capitalize">{ex.primaryMuscles.slice(0, 2).join(' · ')}</p>
+                    )}
+                  </div>
+                  <Plus size={15} className="text-violet-400 flex-shrink-0" />
+                </button>
+              ))}
+              {(searchData?.items ?? []).length === 0 && (
+                <p className="px-4 py-3 text-sm text-slate-400">No exercises found for "{debouncedSearch}"</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Active set-logger card */}
+        {activeExercise && !isCompleted && (
+          <div className="mx-4 mt-4 bg-white rounded-2xl border border-violet-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">Now logging</p>
+                <p className="font-semibold text-slate-900 truncate">{activeExercise.name}</p>
+              </div>
+              <button onClick={() => setActiveExercise(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Previous sets for this exercise */}
+            {getSetsForExercise(activeExercise.id).length > 0 && (
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Previous sets</p>
+                <div className="space-y-1">
+                  {getSetsForExercise(activeExercise.id).map((s) => (
+                    <div key={s.setNumber} className="flex items-center gap-2 text-sm">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                        {s.setNumber}
+                      </span>
+                      <span className="text-slate-600">{s.reps ?? '—'} reps</span>
+                      {s.weight != null && (
+                        <span className="text-slate-700 font-medium">@ {s.weight} kg</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New set form */}
+            <div className="px-4 py-4">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                Set {getNextSetNum(activeExercise.id)}
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <Input
+                  label="Reps"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={reps}
+                  onChange={(e) => setReps(e.target.value)}
+                  placeholder="10"
+                />
+                <Input
+                  label="Weight (kg)"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min="0"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="e.g. 52.25"
+                />
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleLogSet}
+                loading={logSet.isPending}
+                disabled={!reps && !weight}
+              >
+                Log set {getNextSetNum(activeExercise.id)}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Logged exercises summary */}
+        <div className="p-4 space-y-3">
+          {exerciseGroups.length > 0 ? (
+            exerciseGroups.map((group) => (
+              <div key={group.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                  onClick={() => {
+                    if (isCompleted) return;
+                    setActiveExercise({ id: group.id, name: group.name });
+                    setSearchQuery('');
+                    setShowResults(false);
+                    setWeight(getLastWeight(group.id));
+                    setReps('10');
+                  }}
+                  disabled={isCompleted}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                      <Dumbbell size={15} className="text-violet-600" />
+                    </div>
+                    <div className="text-left min-w-0">
+                      <p className="font-medium text-slate-900 text-sm truncate">{group.name}</p>
+                      <p className="text-xs text-slate-400">{group.sets.length} set{group.sets.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  {!isCompleted && <ChevronRight size={15} className="text-slate-300 flex-shrink-0" />}
+                </button>
+                <div className="px-4 pb-3 border-t border-slate-50 space-y-1 pt-2">
+                  {group.sets.map((s) => (
+                    <div key={s.setNumber} className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-[9px]">
+                        {s.setNumber}
+                      </span>
+                      <span>{s.reps != null ? `${s.reps} reps` : '—'}</span>
+                      {s.weight != null && (
+                        <span className="text-slate-700 font-semibold">@ {s.weight} kg</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            !isCompleted && (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center">
+                  <Dumbbell size={28} className="text-violet-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700">No exercises yet</p>
+                  <p className="text-sm text-slate-400 mt-1">Search above to find an exercise and start logging</p>
+                </div>
+              </div>
+            )
+          )}
+
+          {isCompleted && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <CheckCircle2 size={36} className="text-emerald-500" />
+              <div>
+                <p className="font-semibold text-slate-800">Workout Complete!</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  {sets.length} sets · {exerciseGroups.length} exercises
+                </p>
+              </div>
+              <Button variant="secondary" onClick={onClose}>Back to sessions</Button>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom padding for home indicator */}
+        <div className="pb-safe h-6" />
       </div>
     </div>
   );

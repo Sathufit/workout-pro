@@ -355,9 +355,9 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
             <X size={18} />
           </button>
         </div>
-        {/* Scrollable body */}
+        {/* Scrollable body — inputs only, buttons live in the footer below */}
         <div className="overflow-y-auto flex-1 px-6 py-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="log-metric-form" onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-xs text-rose-600 bg-rose-50 p-3 rounded-lg">{error}</p>}
             <Select
               label="Metric type"
@@ -373,21 +373,25 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
               type="number"
               step="any"
               min="0"
+              inputMode="decimal"
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320)}
               placeholder={type === 'WEIGHT' ? 'e.g. 52.25' : type === 'HEIGHT' ? 'e.g. 178' : 'Enter value'}
             />
             <Input
               label="Note (optional)"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320)}
               placeholder="Any notes about this entry"
             />
-            <div className="flex gap-2 pt-1 pb-safe">
-              <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
-              <Button type="submit" className="flex-1" loading={loading}>Log metric</Button>
-            </div>
           </form>
+        </div>
+        {/* Fixed footer — always visible above the keyboard */}
+        <div className="flex gap-2 px-6 py-4 pb-safe border-t border-slate-100 flex-shrink-0 bg-white rounded-b-2xl sm:rounded-b-2xl">
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="submit" form="log-metric-form" className="flex-1" loading={loading}>Log metric</Button>
         </div>
       </div>
     </div>

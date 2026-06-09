@@ -115,6 +115,7 @@ describe('WorkoutService', () => {
 
       await service.logSet('user1', 's1', {
         exerciseId: 'ex1',
+        exerciseName: 'Bench Press',
         setNumber: 1,
         reps: 10,
         weight: 60,

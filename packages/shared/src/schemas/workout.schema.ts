@@ -34,6 +34,7 @@ export const StartSessionSchema = z.object({
 
 export const LogSetSchema = z.object({
   exerciseId: mongoId,
+  exerciseName: z.string().optional().nullable(),
   setNumber: z.number().int().positive(),
   reps: z.number().int().positive().optional().nullable(),
   weight: z.number().positive().optional().nullable(),

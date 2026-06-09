@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 export class PlanExercise {
   exerciseId: string;
+  exerciseName?: string;
   order: number;
   targetSets?: number;
   targetReps?: number;
@@ -33,6 +34,7 @@ export class WorkoutPlan extends Document {
     type: [
       {
         exerciseId: { type: String, required: true },
+        exerciseName: String,
         order: { type: Number, required: true },
         targetSets: Number,
         targetReps: Number,

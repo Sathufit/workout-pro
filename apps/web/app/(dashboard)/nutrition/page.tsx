@@ -518,6 +518,7 @@ function AddFoodModal({
               placeholder="Search foods (e.g. banana, chicken breast, oats...)"
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
+              onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 320)}
             />
             {searching && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-500 animate-spin" />}
           </div>
@@ -591,10 +592,12 @@ function AddFoodModal({
                   <input
                     type="number"
                     min="1"
-                    step="1"
+                    step="any"
+                    inputMode="decimal"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320)}
+                    className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 min-h-[2.75rem]"
                     placeholder="e.g. 150"
                   />
                   <span className="flex items-center text-sm text-slate-500 px-2">g</span>

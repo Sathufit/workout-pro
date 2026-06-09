@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 export class WorkoutSet {
   exerciseId: string;
+  exerciseName?: string;
   setNumber: number;
   reps?: number;
   weight?: number;
@@ -35,6 +36,7 @@ export class WorkoutSession extends Document {
     type: [
       {
         exerciseId: { type: String, required: true },
+        exerciseName: String,
         setNumber: { type: Number, required: true },
         reps: Number,
         weight: Number,
