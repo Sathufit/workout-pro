@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ZodExceptionFilter } from './common/filters/zod-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,6 +29,9 @@ async function bootstrap() {
     },
     credentials: true,
   });
+
+  // Global Zod error handler → returns 400 with field-level details
+  app.useGlobalFilters(new ZodExceptionFilter());
 
   // Global validation pipe
   app.useGlobalPipes(
