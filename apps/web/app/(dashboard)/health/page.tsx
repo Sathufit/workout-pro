@@ -80,7 +80,7 @@ export default function HealthPage() {
   const latestWeight = latest?.WEIGHT;
   const latestBodyFat = latest?.BODY_FAT;
 
-  const bmi = summary?.currentBMI;
+  const bmi = (latest?.BMI as { value?: number } | undefined)?.value ?? null;
   const bmiCategory = bmi
     ? bmi < 18.5 ? 'Underweight'
     : bmi < 25 ? 'Normal'
@@ -336,7 +336,7 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
     if (isNaN(num) || num <= 0) { setError('Please enter a valid positive number'); return; }
     setLoading(true);
     try {
-      await api.post('/health/metrics', { type, value: num, unit: cfg.unit, note });
+      await api.post('/health/metrics', { type, value: num, unit: cfg.unit, note, recordedAt: new Date().toISOString() });
       onLogged();
     } catch {
       setError('Failed to log metric. Please try again.');

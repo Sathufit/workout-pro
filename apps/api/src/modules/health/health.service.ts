@@ -6,7 +6,7 @@ import { WorkoutSession } from '../../schemas/workout-session.schema';
 import { CreateMetricInput, MetricQuery } from '@workout-pro/shared';
 import { calculateBMI, getBMICategory } from '@workout-pro/shared';
 
-const METRIC_TYPES = ['WEIGHT', 'HEIGHT', 'BODY_FAT', 'CALORIES_CONSUMED', 'CALORIES_BURNED', 'HYDRATION', 'SLEEP_HOURS', 'STEPS'];
+const METRIC_TYPES = ['WEIGHT', 'HEIGHT', 'BODY_FAT', 'MUSCLE_MASS', 'WAIST', 'CHEST', 'HIPS', 'CALORIES_CONSUMED', 'CALORIES_BURNED', 'HYDRATION', 'SLEEP_HOURS', 'STEPS'];
 
 @Injectable()
 export class HealthService {

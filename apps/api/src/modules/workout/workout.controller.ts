@@ -19,8 +19,9 @@ export class WorkoutController {
   // ── Plans ──────────────────────────────────────────────────────────────────
 
   @Get('plans')
-  listPlans(@CurrentUser() user: { id: string }) {
-    return this.workoutService.listPlans(user.id);
+  async listPlans(@CurrentUser() user: { id: string }) {
+    const items = await this.workoutService.listPlans(user.id);
+    return { items };
   }
 
   @Post('plans')

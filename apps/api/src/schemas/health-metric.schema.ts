@@ -8,7 +8,7 @@ export class HealthMetric extends Document {
 
   @Prop({
     required: true,
-    enum: ['WEIGHT', 'HEIGHT', 'BODY_FAT', 'CALORIES_CONSUMED', 'CALORIES_BURNED', 'HYDRATION', 'SLEEP_HOURS', 'STEPS'],
+    enum: ['WEIGHT', 'HEIGHT', 'BODY_FAT', 'MUSCLE_MASS', 'WAIST', 'CHEST', 'HIPS', 'CALORIES_CONSUMED', 'CALORIES_BURNED', 'HYDRATION', 'SLEEP_HOURS', 'STEPS'],
   })
   type: string;
 

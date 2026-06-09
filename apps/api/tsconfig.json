@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "baseUrl": "./",
+    "types": ["jest", "node"],
     "paths": {
       "@workout-pro/shared": ["../../packages/shared/src/index.ts"],
       "@workout-pro/shared/*": ["../../packages/shared/src/*"]

@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// MongoDB ObjectIds are 24-char hex strings, not CUIDs — use min(1) throughout
+const mongoId = z.string().min(1);
+
 export const CreatePlanSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional().nullable(),
@@ -9,8 +12,9 @@ export const CreatePlanSchema = z.object({
 export const UpdatePlanSchema = CreatePlanSchema.partial();
 
 export const PlanExerciseSchema = z.object({
-  exerciseId: z.string().cuid(),
-  order: z.number().int().min(0),
+  exerciseId: mongoId,
+  exerciseName: z.string().optional().nullable(),
+  order: z.number().int().min(0).optional().default(0),
   targetSets: z.number().int().positive().optional().nullable(),
   targetReps: z.number().int().positive().optional().nullable(),
   targetWeight: z.number().positive().optional().nullable(),
@@ -20,16 +24,16 @@ export const PlanExerciseSchema = z.object({
 });
 
 export const ReorderExercisesSchema = z.object({
-  order: z.array(z.string().cuid()),
+  order: z.array(mongoId),
 });
 
 export const StartSessionSchema = z.object({
-  planId: z.string().cuid().optional().nullable(),
-  name: z.string().min(1).max(100),
+  planId: mongoId.optional().nullable(),
+  name: z.string().min(1).max(100).optional().default('Workout Session'),
 });
 
 export const LogSetSchema = z.object({
-  exerciseId: z.string().cuid(),
+  exerciseId: mongoId,
   setNumber: z.number().int().positive(),
   reps: z.number().int().positive().optional().nullable(),
   weight: z.number().positive().optional().nullable(),
