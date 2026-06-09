@@ -21,7 +21,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full border rounded-lg px-3 py-2 text-sm bg-white text-slate-900 placeholder:text-slate-400 transition',
+            'w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 placeholder:text-slate-400 transition min-h-[2.75rem]',
             'focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent',
             error ? 'border-rose-400' : 'border-slate-200 hover:border-slate-300',
             className,
@@ -56,7 +56,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full border rounded-lg px-3 py-2 text-sm bg-white text-slate-900 transition',
+            'w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 transition min-h-[2.75rem]',
             'focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent',
             error ? 'border-rose-400' : 'border-slate-200 hover:border-slate-300',
             className,

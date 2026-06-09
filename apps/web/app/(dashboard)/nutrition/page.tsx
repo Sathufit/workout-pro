@@ -360,7 +360,7 @@ export default function NutritionPage() {
                               <p className="text-xs text-slate-400">{item.quantity}{item.unit}{item.brand ? ` · ${item.brand}` : ''}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="text-right hidden sm:block">
                               <p className="text-sm font-semibold text-slate-900">{item.calories} kcal</p>
                               <p className="text-xs text-slate-400">P:{item.protein.toFixed(0)}g C:{item.carbs.toFixed(0)}g F:{item.fat.toFixed(0)}g</p>
@@ -368,7 +368,7 @@ export default function NutritionPage() {
                             <p className="text-sm font-semibold text-slate-900 sm:hidden">{item.calories} kcal</p>
                             <button
                               onClick={() => removeItem.mutate({ itemId: item._id })}
-                              className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                              className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors min-h-[2.5rem] min-w-[2.5rem] flex items-center justify-center"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -626,7 +626,7 @@ function AddFoodModal({
 
               {/* Nutrition preview */}
               {preview && (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { label: 'Calories', value: `${preview.calories}`, unit: 'kcal', color: 'text-orange-600' },
                     { label: 'Protein', value: `${preview.protein}`, unit: 'g', color: 'text-violet-600' },
@@ -649,7 +649,7 @@ function AddFoodModal({
 
         {/* Footer */}
         {selected && (
-          <div className="p-4 border-t border-slate-100 flex gap-2 flex-shrink-0">
+          <div className="p-4 pb-safe border-t border-slate-100 flex gap-2 flex-shrink-0">
             <Button variant="secondary" className="flex-1" onClick={() => setSelected(null)}>Back</Button>
             <Button className="flex-1" loading={loading} onClick={handleAdd}>
               Add to {mealLabel}

@@ -346,15 +346,17 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Log Metric</CardTitle>
-          <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl border border-slate-100 shadow-xl flex flex-col max-h-[92dvh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-base font-semibold text-slate-900">Log Metric</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
             <X size={18} />
           </button>
-        </CardHeader>
-        <CardContent>
+        </div>
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-5">
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="text-xs text-rose-600 bg-rose-50 p-3 rounded-lg">{error}</p>}
             <Select
@@ -363,17 +365,17 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
               onChange={(e) => setType(e.target.value as MetricType)}
             >
               {(Object.entries(METRIC_CONFIG) as [MetricType, typeof METRIC_CONFIG[MetricType]][]).map(([key, c]) => (
-                <option key={key} value={key}>{c.label}{c.unit ? ` (${c.unit})` : ''}</option>
+                key !== 'BMI' && <option key={key} value={key}>{c.label}{c.unit ? ` (${c.unit})` : ''}</option>
               ))}
             </Select>
             <Input
               label={`Value${cfg.unit ? ` (${cfg.unit})` : ''}`}
               type="number"
-              step="0.1"
+              step="any"
               min="0"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={type === 'WEIGHT' ? 'e.g. 75.5' : type === 'HEIGHT' ? 'e.g. 178' : 'Enter value'}
+              placeholder={type === 'WEIGHT' ? 'e.g. 52.25' : type === 'HEIGHT' ? 'e.g. 178' : 'Enter value'}
             />
             <Input
               label="Note (optional)"
@@ -381,13 +383,13 @@ function LogMetricsModal({ onClose, onLogged }: { onClose: () => void; onLogged:
               onChange={(e) => setNote(e.target.value)}
               placeholder="Any notes about this entry"
             />
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1 pb-safe">
               <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
               <Button type="submit" className="flex-1" loading={loading}>Log metric</Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

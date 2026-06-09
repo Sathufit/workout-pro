@@ -220,11 +220,11 @@ function PlanCard({ plan, onStart, onManage, onDelete, starting }: {
               <MoreHorizontal size={16} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-7 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-10 w-36">
-                <button onClick={() => { setMenuOpen(false); onManage(); }} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <div className="absolute right-0 top-8 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-10 w-40">
+                <button onClick={() => { setMenuOpen(false); onManage(); }} className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 min-h-[2.75rem] flex items-center">
                   Edit exercises
                 </button>
-                <button onClick={() => { setMenuOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                <button onClick={() => { setMenuOpen(false); onDelete(); }} className="w-full text-left px-3 py-2.5 text-sm text-rose-600 hover:bg-rose-50 min-h-[2.75rem] flex items-center">
                   Delete plan
                 </button>
               </div>
@@ -426,7 +426,7 @@ function ManagePlanModal({ plan, onClose }: { plan: WorkoutPlan; onClose: () => 
           )}
         </div>
 
-        <div className="p-5 border-t border-slate-100 flex gap-2 flex-shrink-0">
+        <div className="p-5 pb-safe border-t border-slate-100 flex gap-2 flex-shrink-0">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Done</Button>
           <Button className="flex-1" onClick={() => setShowPicker(true)}>
             <Plus size={14} /> Add exercise
@@ -609,8 +609,10 @@ function ExercisePicker({ planId, onClose }: { planId: string; onClose: () => vo
                 <div className="grid grid-cols-2 gap-3">
                   <Input label="Sets" type="number" min="1" value={sets} onChange={(e) => setSets(e.target.value)} placeholder="3" />
                   <Input label="Reps" type="number" min="1" value={reps} onChange={(e) => setReps(e.target.value)} placeholder="10" />
-                  <Input label="Weight (kg, optional)" type="number" min="0" step="0.5" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 60" />
-                  <Input label="Rest (seconds)" type="number" min="0" value={rest} onChange={(e) => setRest(e.target.value)} placeholder="60" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <Input label="Weight (kg)" type="number" min="0" step="any" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g. 52.25" />
+                  <Input label="Rest (sec)" type="number" min="0" value={rest} onChange={(e) => setRest(e.target.value)} placeholder="60" />
                 </div>
               </div>
 
@@ -645,7 +647,7 @@ function ExercisePicker({ planId, onClose }: { planId: string; onClose: () => vo
         )}
 
         {selected && (
-          <div className="p-5 border-t border-slate-100 flex gap-2 flex-shrink-0">
+          <div className="p-5 pb-safe border-t border-slate-100 flex gap-2 flex-shrink-0">
             <Button variant="secondary" className="flex-1" onClick={() => setSelected(null)}>Back</Button>
             <Button className="flex-1" loading={loading} onClick={handleAdd}>
               <Plus size={14} /> Add to plan
@@ -696,16 +698,16 @@ function ExerciseInstructionsPreview({ exercise, expanded, onToggle }: {
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{title}</CardTitle>
-          <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl border border-slate-100 shadow-xl flex flex-col max-h-[92dvh]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
             <X size={18} />
           </button>
-        </CardHeader>
-        <CardContent>{children}</CardContent>
-      </Card>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5 pb-safe">{children}</div>
+      </div>
     </div>
   );
 }

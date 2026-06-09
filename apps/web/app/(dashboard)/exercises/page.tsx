@@ -284,9 +284,9 @@ function ExerciseDrawer({ exercise, onClose }: { exercise: Exercise; onClose: ()
   const displayInstructions = showAll ? instructions : instructions.slice(0, 4);
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col overflow-y-auto">
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col overflow-y-auto">
         {/* Image carousel */}
         {images.length > 0 && (
           <div className="relative h-56 bg-slate-100 flex-shrink-0">
@@ -411,7 +411,7 @@ function ExerciseDrawer({ exercise, onClose }: { exercise: Exercise; onClose: ()
           )}
         </div>
 
-        <div className="p-5 border-t border-slate-100 flex-shrink-0">
+        <div className="p-5 pb-safe border-t border-slate-100 flex-shrink-0">
           <Button className="w-full" onClick={onClose}>Close</Button>
         </div>
       </div>
